@@ -65,6 +65,8 @@ done
 ## Uninstalling old release
 ```
 helm uninstall vault-150 -n vault
+```
 
+```
 kubectl delete pvc -n vault data-vault-150-0 data-vault-150-1 data-vault-150-2
 ```
