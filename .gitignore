@@ -29,5 +29,5 @@ override.tf.json
 
 
 ## Templates files generated locally
-**/*.json
+**/*-init-log.json
 
