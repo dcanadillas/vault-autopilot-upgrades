@@ -1,0 +1,210 @@
+global:
+  enabled: true
+  namespace: ""
+  tlsDisable: true
+
+  serverTelemetry:
+    # Enable integration with the Prometheus Operator
+    # See the top level serverTelemetry section below before enabling this feature.
+    prometheusOperator: false
+
+server:
+  enabled: "-"
+  enterpriseLicense:
+    secretName: "vault-ent-license"
+    secretKey: "license"
+
+  image:
+    repository: "hashicorp/vault-enterprise"
+    tag: "1.15.0-ent"
+    pullPolicy: IfNotPresent
+
+  updateStrategyType: "OnDelete"
+  logLevel: "trace"
+
+  extraInitContainers: null
+  extraPorts: null
+    # - containerPort: 8300
+    #   name: http-monitoring
+  postStart: []
+  extraEnvironmentVars: {}
+
+  # extraSecretEnvironmentVars is a list of extra environment variables to set with the stateful set.
+  # These variables take value from existing Secret objects.
+  extraSecretEnvironmentVars: []
+  extraVolumes: []
+    # - type: secret (or "configMap")
+    #   name: my-secret
+    #   path: null # default is `/vault/userconfig`
+  affinity: ""
+  # affinity: |
+  #   podAntiAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       - labelSelector:
+  #           matchLabels:
+  #             app.kubernetes.io/name: {{ template "vault.name" . }}
+  #             app.kubernetes.io/instance: "{{ .Release.Name }}"
+  #             component: server
+  #         topologyKey: kubernetes.io/hostname
+
+  priorityClassName: ""
+  extraLabels: {}
+  annotations: {}
+  service:
+    enabled: true
+    active:
+      enabled: true
+      annotations: {}
+    standby:
+      enabled: true
+      annotations: {}
+
+
+
+    # The externalTrafficPolicy can be set to either Cluster or Local
+    # and is only valid for LoadBalancer and NodePort service types.
+    # The default value is Cluster.
+    # ref: https://kubernetes.io/docs/concepts/services-networking/service/#external-traffic-policy
+    externalTrafficPolicy: Cluster
+
+    port: 8200
+    targetPort: 8200
+    annotations: {}
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    mountPath: "/vault/data"
+    storageClass: null
+    accessMode: ReadWriteOnce
+    annotations: {}
+    labels: {}
+
+  # Persistent Volume Claim (PVC) retention policy
+  # ref: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#persistentvolumeclaim-retention
+  # Example:
+  # persistentVolumeClaimRetentionPolicy:
+  #   whenDeleted: Retain
+  #   whenScaled: Retain
+  persistentVolumeClaimRetentionPolicy: {}
+
+  # This configures the Vault Statefulset to create a PVC for audit
+  # logs.  Once Vault is deployed, initialized, and unsealed, Vault must
+  # be configured to use this for audit logs.  This will be mounted to
+  # /vault/audit
+  # See https://developer.hashicorp.com/vault/docs/audit to know more
+  auditStorage:
+    enabled: false
+    size: 10Gi
+    mountPath: "/vault/audit"
+    storageClass: null
+    accessMode: ReadWriteOnce
+    annotations: {}
+    labels: {}
+
+  ha:
+    enabled: true
+    replicas: 3
+    apiAddr: null
+    clusterAddr: null
+    raft:
+      enabled: true
+      setNodeId: true
+
+      # Note: Configuration files are stored in ConfigMaps so sensitive data
+      # such as passwords should be either mounted through extraSecretEnvironmentVars
+      # or through a Kube secret.  For more information see:
+      # https://developer.hashicorp.com/vault/docs/platform/k8s/helm/run#protecting-sensitive-vault-configurations
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+          # retry_join {
+          #   leader_api_addr = "http://vault-0.vault-internal:8200"
+          #   # leader_ca_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.ca"
+          #   # leader_client_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.crt"
+          #   # leader_client_key_file = "/vault/userconfig/vault-server-tls-sec/vault.key"
+          # }
+          # retry_join {
+          #   leader_api_addr = "http://vault-1.vault-internal:8200"
+          #   # leader_ca_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.ca"
+          #   # leader_client_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.crt"
+          #   # leader_client_key_file = "/vault/userconfig/vault-server-tls-sec/vault.key"
+          # }
+          # retry_join {
+          #   leader_api_addr = "http://vault-2.vault-internal:8200"
+          #   # leader_ca_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.ca"
+          #   # leader_client_cert_file = "/vault/userconfig/vault-server-tls-sec/vault.crt"
+          #   # leader_client_key_file = "/vault/userconfig/vault-server-tls-sec/vault.key"
+          # }
+          retry_join {
+            auto_join = "provider=k8s label_selector=\"app.kubernetes.io/name=vault,component=server\" namespace=\"{{ .Release.Namespace }}\""
+            auto_join_port = 8200
+            # leader_tls_servername = "vault"
+            auto_join_scheme = "http"
+            # leader_ca_cert_file = "/vault/cert/vault.ca"
+            # leader_client_key_file = "/vault/cert/vault.key"
+            # leader_client_cert_file = "/vault/cert/vault.crt"
+          }
+        }
+
+        service_registration "kubernetes" {}
+
+        # Example configuration for using auto-unseal, using Google Cloud KMS. The
+        # GKMS keys must already exist, and the cluster must have a service account
+        # that is authorized to access GCP KMS.
+        #seal "gcpckms" {
+        #   project     = "vault-helm-dev-246514"
+        #   region      = "global"
+        #   key_ring    = "vault-helm-unseal-kr"
+        #   crypto_key  = "vault-helm-unseal-key"
+        #}
+
+        # Example configuration for enabling Prometheus metrics.
+        # If you are using Prometheus Operator you can enable a ServiceMonitor resource below.
+        # You may wish to enable unauthenticated metrics in the listener block above.
+        #telemetry {
+        #  prometheus_retention_time = "30s"
+        #  disable_hostname = true
+        #}
+
+
+    disruptionBudget:
+      enabled: true
+    # maxUnavailable will default to (n/2)-1 where n is the number of
+    # replicas. If you'd like a custom value, you can specify an override here.
+      maxUnavailable: null
+
+  serviceAccount:
+    create: true
+    name: ""
+    createSecret: false
+    annotations: {}
+    extraLabels: {}
+    serviceDiscovery:
+      enabled: true
+
+  statefulSet:
+    annotations: {}
+  hostNetwork: false
+
+# Vault UI
+ui:
+  enabled: true
+  publishNotReadyAddresses: true
+  # The service should only contain selectors for active Vault pod
+  activeVaultPodOnly: true
+  serviceType: "LoadBalancer"
+  serviceNodePort: null
+  externalPort: 8200
+  targetPort: 8200
+  externalTrafficPolicy: Cluster
+  annotations: {}
+
