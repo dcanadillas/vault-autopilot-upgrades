@@ -159,29 +159,43 @@ helm upgrade vault -n vault --reuse-values --set server.ha.replicas=3 hashicorp/
 
 ## The scripted path
 
+Install Vault:
 ```
 ./vault-k8s.sh -c values.yaml -l $VAULT_LICENSE
 ```
 > NOTE: There will be a check in the beginning to confirm that you are working in the right K8s cluster. Type `y` if that is the case.
 
+Source Vault env variables to connect from CLI, so we don't need to pass the Vault token to the scripts:
 ```
 source /tmp/vault/vault-env.sh
 ```
 
+Upgrade to 6 replicas:
 ```
 helm upgrade vault -n vault --reuse-values --set server.image.tag="1.15.5-ent" --set server.ha.replicas=6 hashicorp/vault 
 ```
 
-
-
+Unseal the new nodes (this shouldn't be needed if using Vault auto-unseal, but we are not using it in this demo):
 ```
 ./vault-unseal.sh -s vault-init-log
 ```
 
+Wait till autopilot `Upgrade.Status` is in `await-server-removal`:
+```
+watch "kubectl exec -ti vault-0 -n vault -- sh -c \"VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state -format json\" | jq .Upgrade"
+```
+
+Execute the script that removes extra peers and set the leader to the initial Vault pods that has been upgraded:
 ```
 ./remove-peers.sh -s vault-init-log
 ```
 
+Let's get back the Helm chart to the 3 replicas for the StatefulSet:
 ```
 helm upgrade vault -n vault --reuse-values --set server.ha.replicas=3 hashicorp/vault
+```
+
+Clean the extra PVCs (this part is not yet scripted):
+```
+kubectl delete pvc data-vault-3 data-vault-4 data-vault-5
 ```
