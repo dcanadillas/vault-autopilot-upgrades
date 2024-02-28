@@ -15,7 +15,7 @@ The official Kubernetes upgrade guide for Vault is
 ## Use cases
 
 I have included a couple of use cases to follow with this repo:
-* Use a semi-automated upgrade process using [Vault Enterprise automated upgrade](https://developer.hashicorp.com/vault/docs/enterprise/automated-upgrades), following manual commands. You can check it [here](autopilot.md)
+* **Semi-automated upgrade process** using [Vault Enterprise automated upgrade](https://developer.hashicorp.com/vault/docs/enterprise/automated-upgrades), following manual commands. You can check it [here](autopilot.md)
   * Use the same semi automated process, but executing some helper scripts to accelerate process: [here](./autopilot.md#the-scripted-path)
-* By using 2 different Helm charts and Vault Enterprise automated upgrades, without the need to do a manual re-election process: [here](./2helms/2Helms.md)
+* With **2 different Helm charts** and Vault Enterprise automated upgrades, without the need to do a manual re-election process: [here](./2helms/2Helms.md)
  
