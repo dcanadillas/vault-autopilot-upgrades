@@ -2,7 +2,7 @@
 
 This repo is made for Vault demo purposes to understand how the Vault autopilot works when performing a Vault upgrade in Kubernetes.
 
-The official Kubernetes upgrade guide for Vault is 
+The official Kubernetes upgrade guide for Vault is [in here](https://developer.hashicorp.com/vault/tutorials/kubernetes/kubernetes-raft-deployment-guide#upgrading-vault-on-kubernetes)
 
 > NOTE: This Vault demo example is storing the Vault init log (`Root Token` and `Unseal Key`) in a Kubernetes secret. This is not a recommended pattern at all and it is done only for demo purposes!!
 
