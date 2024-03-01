@@ -304,7 +304,7 @@ vault_init () {
     # echo -e "\n${YELL}Vault address: ${NC}http://$(kubectl get svc vault-ui -n $VAULT_NS -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):8200"
   else
     VAULT_ADDR="http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$(kubectl get svc vault-ui -n $VAULT_NS -o jsonpath='{.spec.ports[0].nodePort}')"
-    /echo -e "\n${YELL}Vault address: ${NC}http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$(kubectl get svc vault-ui -n $VAULT_NS -o jsonpath='{.spec.ports[0].nodePort}')"
+    echo -e "\n${YELL}Vault address: ${NC}http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):$(kubectl get svc vault-ui -n $VAULT_NS -o jsonpath='{.spec.ports[0].nodePort}')"
   fi
 
   VAULT_TOKEN=$(kubectl get secret vault-init-log -n $VAULT_NS -o jsonpath='{.data.vault-init-log\.json}' | base64 -d | jq -r .root_token)
