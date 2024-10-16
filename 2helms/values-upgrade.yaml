@@ -17,7 +17,7 @@ server:
 
   image:
     repository: "hashicorp/vault-enterprise"
-    tag: "1.15.5-ent"
+    tag: "1.16.9-ent"
     pullPolicy: IfNotPresent
 
   updateStrategyType: "OnDelete"
@@ -117,7 +117,7 @@ server:
 
         storage "raft" {
           path = "/vault/data"
-          autopilot_upgrade_version = "1.15.5.1"
+          autopilot_upgrade_version = "1.16.9.1"
           retry_join {
             auto_join = "provider=k8s label_selector=\"app.kubernetes.io/name=vault,component=server\" namespace=\"{{ .Release.Namespace }}\""
             auto_join_scheme = "http"

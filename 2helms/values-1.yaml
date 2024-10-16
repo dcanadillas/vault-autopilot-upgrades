@@ -17,7 +17,7 @@ server:
 
   image:
     repository: "hashicorp/vault-enterprise"
-    tag: "1.15.0-ent"
+    tag: "1.16.8-ent"
     pullPolicy: IfNotPresent
 
   updateStrategyType: "OnDelete"

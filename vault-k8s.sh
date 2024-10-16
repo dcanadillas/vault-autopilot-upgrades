@@ -1,10 +1,12 @@
 CONFIG_FILES_DIR="/tmp/vault"
-VAULT_CHART_VERSION="0.27.0"
+VAULT_CHART_VERSION="0.28.1"
 VSO_CHART_VERSION="0.5.0"
 VAULT_NODE_PORT=32000
 VAULT_LICENSE="$VAULT_LICENSE"
 VAULT_NS="vault"
 HELM_RELEASE="vault"
+# Let's use an LTS version of Vault
+VAULT_VERSION="1.16.8-ent" 
 
 # Setting coloring with tput
 NC=$(tput sgr0)
@@ -22,35 +24,51 @@ check () {
   kubectl cluster-info
 
   # Let's ask the user if the k8s cluster is correct
-  read -p "${YELL}Is the k8s cluster correct? (y/n): ${NC}" K8S_CORRECT
-  case $K8S_CORRECT in
-      y|Y)
-          echo -e "\n${GRN}Great! Let's continue...${NC}"
-          ;;
-      n|N)
-          echo -e "\n${RED}Please, check the k8s cluster and try again...${NC}"
-          exit 1
-          ;;
-      *)
-          echo -e "\n${RED}Please, select \"y\" or \"n\"...${NC}"
-          exit 1
-          ;;
-  esac
+  if [ "$SILENT" != "true" ]; then
+    read -p "${YELL}Is the k8s cluster correct? (y/n): ${NC}" K8S_CORRECT
+    case $K8S_CORRECT in
+        y|Y)
+            echo -e "\n${GRN}Great! Let's continue...${NC}"
+            ;;
+        n|N)
+            echo -e "\n${RED}Please, check the k8s cluster and try again...${NC}"
+            exit 1
+            ;;
+        *)
+            echo -e "\n${RED}Please, select \"y\" or \"n\"...${NC}"
+            exit 1
+            ;;
+    esac
+  else
+    echo -e "\n${YELL}Your Kubernetes endpoint is $(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')...${NC}"
+    echo -e "\n${YELL}You will have 5 seconds to cancel the script with Ctrl-C before it starts to install Vault...${NC}"
+    # Let's create a counter for 5 seconds
+    seconds=5
+    while [ $seconds -gt 0 ]; do
+      echo -e "\n${YELL}Starting in $seconds seconds...${NC}"
+      sleep 1
+      : $((seconds--))
+    done
+    # sleep 5
+    # exit 1
+  fi
 
   if check_vault ; then
     echo -e "\n${GRN}Vault will be upgraded with values \"$VALUES_FILE\"...${NC}"
 
     # Ask the user if the Vault will be upgraded
-    read -p "${YELL}Do you want to upgrade Vault Enterprise? (y/N): ${NC}" UPGRADE_VAULT
-    case $UPGRADE_VAULT in
-        y|Y)
-            echo -e "\n${GRN}Great! Let's continue...${NC}"
-            ;;
-        *)
-            echo -e "\n${RED}Aborted...${NC}"
-            exit 1
-            ;;
-    esac
+    if [ -z $SILENT ]; then
+      read -p "${YELL}Do you want to upgrade Vault Enterprise? (y/N): ${NC}" UPGRADE_VAULT
+      case $UPGRADE_VAULT in
+          y|Y)
+              echo -e "\n${GRN}Great! Let's continue...${NC}"
+              ;;
+          *)
+              echo -e "\n${RED}Aborted...${NC}"
+              exit 1
+              ;;
+      esac
+    fi
 
     # If Vault is installed we need to check that the license is set in the secret. If not, we need to set the environment variable
     kubectl get secret vault-ent-license -n $VAULT_NS &> /dev/null || 
@@ -88,6 +106,8 @@ help () {
   echo -e "\n${YELL}Options: ${NC}"
   echo -e "\n${YELL}-c|--config${NC} <VALUES_FILE>  Helm values file for Vault"
   echo -e "\n${YELL}-l|--license${NC} <VAULT_LICENSE>  Vault license"
+  echo -e "\n${YELL}-r|--release${NC} <HELM_RELEASE>  Helm release name for Vault"
+  echo -e "\n${YELL}-s|--silent${NC}  Silent mode. The script will not ask for confirmation to upgrade Vault Enterprise"
   echo -e "\n${YELL}-h|--help${NC}  Show this help message"
   echo -e "\n${YELL}Example: ${NC}vault-k8s.sh -c /tmp/vault-values.yaml -l <VAULT_LICENSE>"
   echo -e "\n${YELL}Example: ${NC}vault-k8s.sh -l <VAULT_LICENSE>"
@@ -124,7 +144,7 @@ server:
 
   image:
     repository: "hashicorp/vault-enterprise"
-    tag: "1.15.5-ent"
+    tag: "$VAULT_VERSION"
     pullPolicy: IfNotPresent
 
   updateStrategyType: "OnDelete"
@@ -347,6 +367,10 @@ while [[ $# -gt 0 ]];do
     -r|--release)
     HELM_RELEASE="$2"
     shift 2
+    ;;
+    -s|--silent)
+    SILENT="true"
+    shift # past value
     ;;
     -h|--help)
     help

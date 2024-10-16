@@ -92,7 +92,7 @@ Once you get that you can do a `Ctrl-C` to get out from the watch command.
 
 You can check the status of autopilot. The lifecycle should be `idle --> await-new-voters --> demoting --> promoting --> leader-transfer --> await-server-removal --> idle`. So according to this, the new state of autopilot should be `await-server-removal`. You can check it by:
 ```
-vault operator raft autopilot -format json | jq -r .Upgrade.Status
+vault operator raft autopilot state -format json | jq -r .Upgrade.Status
 ```
 
 ## Setting up back the 3 nodes cluster with new version
@@ -172,7 +172,7 @@ source /tmp/vault/vault-env.sh
 
 Upgrade to 6 replicas:
 ```
-helm upgrade vault -n vault --reuse-values --set server.image.tag="1.15.5-ent" --set server.ha.replicas=6 hashicorp/vault 
+helm upgrade vault -n vault --reuse-values --set server.image.tag="1.16.9-ent" --set server.ha.replicas=6 hashicorp/vault 
 ```
 
 Unseal the new nodes (this shouldn't be needed if using Vault auto-unseal, but we are not using it in this demo):
