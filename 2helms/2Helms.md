@@ -6,67 +6,67 @@ This an example of a way to upgrade Vault with Automated upgrades using 2 Helm r
 
 ## Install first Helm
 ```
-helm upgrade -i vault-150 -f 2helms/values-1.yaml -n vault hashicorp/vault --debug
+helm upgrade -i vault-168 -f 2helms/values-1.yaml -n vault hashicorp/vault --debug
 ```
 
 ```
-kubectl exec -n vault vault-150-0 -- sh -c "vault operator init -key-shares=1 -key-threshold=1 -format=json" | tee 2helms/vault-150-init-log.json
+kubectl exec -n vault vault-168-0 -- sh -c "vault operator init -key-shares=1 -key-threshold=1 -format=json" | tee 2helms/vault-168-init-log.json
 ```
 
 ```
-kubectl delete secret vault-150-init-log -n vault
+kubectl delete secret vault-168-init-log -n vault
 ```
 ```
-kubectl create secret generic vault-150-init-log -n vault --from-file=./2helms/vault-150-init-log.json
+kubectl create secret generic vault-168-init-log -n vault --from-file=./2helms/vault-168-init-log.json
 ```
 ```
-UNSEAL_KEY=$(kubectl get secret vault-150-init-log -n vault -o jsonpath="{.data.vault-150-init-log\.json}" | base64 -d | jq -r '.unseal_keys_b64[0]')
-for i in vault-150-0 vault-150-1 vault-150-2; do
+UNSEAL_KEY=$(kubectl get secret vault-168-init-log -n vault -o jsonpath="{.data.vault-168-init-log\.json}" | base64 -d | jq -r '.unseal_keys_b64[0]')
+for i in vault-168-0 vault-168-1 vault-168-2; do
   echo -e "\n${YELL}Unsealing Vault pod $i...${NC}"
   kubectl exec -it $i -n vault -- /bin/sh -c "vault operator unseal $UNSEAL_KEY"
 done
 ```
 
 ```
-export VAULT_TOKEN=$(kubectl get secret vault-150-init-log -n vault -o jsonpath="{.data.vault-150-init-log\.json}" | base64 -d | jq -r '.root_token')
+export VAULT_TOKEN=$(kubectl get secret vault-168-init-log -n vault -o jsonpath="{.data.vault-168-init-log\.json}" | base64 -d | jq -r '.root_token')
 ```
 
 
 ## Installing second helm and promote
 ```
-helm upgrade -i vault-155 -f 2helms/values-upgrade.yaml -n vault hashicorp/vault --debug
+helm upgrade -i vault-169 -f 2helms/values-upgrade.yaml -n vault hashicorp/vault --debug
 ``` 
 
 ```
-for i in vault-155-0 vault-155-1 vault-155-2; do
+for i in vault-169-0 vault-169-1 vault-169-2; do
   echo -e "\n${YELL}Unsealing Vault pod $i...${NC}"
   kubectl exec -it $i -n vault -- /bin/sh -c "vault operator unseal $UNSEAL_KEY"
 done
 ```
 
-Watching process. You need to wait till all nodes from `vault-150` release are non-voters:
+Watching process. You need to wait till all nodes from `vault-168` release are non-voters:
 ```
-watch "kubectl exec -ti vault-155-0 -n vault -- sh -c \"VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers\""
+watch "kubectl exec -ti vault-169-0 -n vault -- sh -c \"VAULT_TOKEN=$VAULT_TOKEN vault operator raft list-peers\""
 ```
 
 Check also that autopilot status is `await-server-removal`:
 ```
-watch "kubectl exec -ti vault-155-0 -n vault -- sh -c \"VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state -format json\" | jq .Upgrade"
+watch "kubectl exec -ti vault-169-0 -n vault -- sh -c \"VAULT_TOKEN=$VAULT_TOKEN vault operator raft autopilot state -format json\" | jq .Upgrade"
 ```
 
 
 Removing peers
 ```
-for i in vault-150-0 vault-150-1 vault-150-2;do
-  kubectl exec -ti -n vault vault-155-0 -- sh -c "VAULT_TOKEN=$VAULT_TOKEN vault operator raft remove-peer $i"
+for i in vault-168-0 vault-168-1 vault-168-2;do
+  kubectl exec -ti -n vault vault-169-0 -- sh -c "VAULT_TOKEN=$VAULT_TOKEN vault operator raft remove-peer $i"
 done
 ```
 
 ## Uninstalling old release
 ```
-helm uninstall vault-150 -n vault
+helm uninstall vault-168 -n vault
 ```
 
 ```
-kubectl delete pvc -n vault data-vault-150-0 data-vault-150-1 data-vault-150-2
+kubectl delete pvc -n vault data-vault-168-0 data-vault-168-1 data-vault-168-2
 ```
